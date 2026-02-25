@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CDAC Live Lectures - Knowledge Park Bengaluru</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=1">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Base Styling */
+        * { caret-color: transparent; margin: 0; padding: 0; box-sizing: border-box; }
+        body { user-select: none; font-family: 'Google Sans', sans-serif; height: 100vh; background: #1a1d21; color: #e8eaed; overflow: hidden; }
+        button:focus { outline: none; }
+
+        .live-container { height: 100vh; display: flex; flex-direction: column; background: rgba(255,255,255,0.02); }
+
+        /* Header */
+        .header {
+            background: linear-gradient(90deg, #ff8c00, #ffb347, #ffaa00);
+            padding: 15px 32px; display: flex; align-items: center; justify-content: center;
+            position: relative; height: 75px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 100;
+        }
+        .cdac-logo { height: 45px; position: absolute; left: 32px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }
+        .header-title { font-size: 24px; font-weight: 600; color: white; text-shadow: 1px 1px 3px rgba(0,0,0,0.3); }
+
+        /* Video Section */
+        .video-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 20px; }
+        .video-section { position: relative; width: 90%; height: 90%; border-radius: 24px; overflow: hidden; background: #000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        #videoPlayer { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+
+        /* Indicators */
+        .live-indicator { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.7); padding: 8px 15px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-weight: 600; z-index: 5; }
+        .flicker-dot { width: 10px; height: 10px; background: #ff4444; border-radius: 50%; animation: flicker 1.5s infinite; }
+        @keyframes flicker { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        
+        .timer { position: absolute; bottom: 20px; right: 20px; background: rgba(0,0,0,0.7); padding: 8px 12px; border-radius: 8px; font-family: 'Roboto Mono'; cursor: text; z-index: 5; border: 1px solid transparent; }
+        .timer:focus { border-color: #ffaa00; outline: none; caret-color: white; }
+
+        #seekBarContainer { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8); padding: 12px 20px; display: none; align-items: center; gap: 15px; backdrop-filter: blur(8px); z-index: 10; }
+        #videoSeeker { flex: 1; cursor: pointer; accent-color: #ffaa00; pointer-events: auto; }
+
+        /* Bottom Bar */
+        .bottom-bar { height: 100px; background: #202124; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; border-top: 1px solid rgba(255,255,255,0.1); z-index: 100; }
+        .left-controls, .center-controls { display: flex; align-items: center; gap: 12px; }
+
+        #clockText { cursor: pointer; user-select: none; }
+
+        .meet-button {
+            height: 56px; min-width: 56px; padding: 0 22px; border-radius: 28px;
+            border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; color: white;
+            font-weight: 500; display: flex; align-items: center; justify-content: center;
+            gap: 12px; transition: all 0.2s; background: rgba(255, 255, 255, 0.08);
+        }
+        .meet-button svg { width: 28px; height: 28px; fill: currentColor; }
+        
+        .btn-red { background: #ea4335 !important; border: none; }
+        .btn-blue { background: #1a73e8 !important; border: none; }
+        .hand-active { background: #fbbc04 !important; color: #202124 !important; box-shadow: 0 0 20px rgba(251, 188, 4, 0.6); transform: scale(1.05); }
+
+        .volume-card { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.05); padding: 0 16px; border-radius: 28px; height: 56px; border: 1px solid rgba(255,255,255,0.1); }
+
+        /* Modals */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-overlay.active { display: flex; }
+        .modal-box { background: #2d2e31; padding: 30px; border-radius: 16px; width: 350px; text-align: center; }
+        .leave-screen { position: fixed; inset: 0; background: #202124; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; }
+    </style>
+</head>
+<body>
+
+    <div class="live-container" id="mainContainer">
+        <div class="header">
+            <img src="/cdac-logo.png" alt="CDAC" class="cdac-logo">
+            <div class="header-title">CDAC Knowledge Park Bengaluru</div>
+        </div>
+
+        <div class="video-wrapper">
+            <div class="video-section" id="resizableVideo">
+                <video id="videoPlayer" autoplay muted loop playsinline>
+                    <source src="/lecture1.mp4" type="video/mp4">
+                </video>
+                <div class="live-indicator"><div class="flicker-dot"></div> LIVE</div>
+                <div class="timer" id="liveTimer" contenteditable="true" spellcheck="false">00:00:00 LIVE</div>
+
+                <div id="seekBarContainer">
+                    <span id="currentTimeDisplay" style="font-family: 'Roboto Mono'; font-size: 12px;">00:00</span>
+                    <input type="range" id="videoSeeker" value="0" min="0" step="0.1">
+                    <span id="durationDisplay" style="font-family: 'Roboto Mono'; font-size: 12px;">00:00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-bar">
+            <div class="left-controls">
+                <span id="clockText" style="font-weight: 500; font-size: 18px;">--:--</span>
+                <span style="color: rgba(255,255,255,0.2); margin: 0 10px;">|</span>
+                <div style="display: flex; align-items: center; gap: 8px; color: #9aa0a6;">
+                    <svg style="fill: currentColor; width: 20px;" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                    <span id="participantCount" contenteditable="true" spellcheck="false">24 participants</span>
+                </div>
+            </div>
+
+            <div class="center-controls">
+                <button class="meet-button btn-red" id="muteBtn">
+                    <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                </button>
+                <button class="meet-button btn-red" id="cameraBtn">
+                    <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+                </button>
+                <div class="volume-card">
+                    <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="0.8">
+                </div>
+                <button class="meet-button" id="raiseHandBtn">
+                    <svg viewBox="0 0 24 24"><path d="M12 1a5 5 0 0 0-5 5v8.5a1.5 1.5 0 0 1-3 0V9a1 1 0 0 0-2 0v5.5a6.5 6.5 0 0 0 13 0V6a5 5 0 0 0-5-5z"/></svg>
+                </button>
+                <button class="meet-button btn-blue" id="presentBtn">
+                    <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+                    <span>Present now</span>
+                </button>
+                <button class="meet-button btn-red" id="leaveBtn" style="padding: 0 30px; border-radius: 12px;">Leave</button>
+            </div>
+            <div style="width: 150px;"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal-box">
+            <h2 id="modalTitle" style="color: white; margin-bottom: 10px;">Confirm</h2>
+            <p id="modalText" style="color: #9aa0a6; margin-bottom: 25px;"></p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button class="meet-button" onclick="closeModal()" style="background: #5f6368;">Cancel</button>
+                <button class="meet-button" id="confirmActionBtn"></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="leave-screen" id="leaveScreen">
+        <h1 style="color: white;">You've left the call</h1>
+        <button class="meet-button btn-blue" style="margin-top:20px;" onclick="location.reload()">Rejoin</button>
+    </div>
+
+    <script>
+        const video = document.getElementById("videoPlayer");
+        const resizable = document.getElementById("resizableVideo");
+        const muteBtn = document.getElementById("muteBtn");
+        const cameraBtn = document.getElementById("cameraBtn");
+        const presentBtn = document.getElementById("presentBtn");
+        const raiseHandBtn = document.getElementById("raiseHandBtn");
+        const clockText = document.getElementById("clockText");
+        const volumeSlider = document.getElementById("volumeSlider");
+        const liveTimer = document.getElementById("liveTimer");
+        const videoSeeker = document.getElementById("videoSeeker");
+        const seekBarContainer = document.getElementById("seekBarContainer");
+        const curTimeDisplay = document.getElementById("currentTimeDisplay");
+        const durTimeDisplay = document.getElementById("durationDisplay");
+
+        let isXPressed = false, isResizing = false, isPresenting = false, isTimerEditable = false;
+        let baseSeconds = 0, sessionStartTime = Date.now();
+
+        // 1. SECRET AUDIO: Clock Toggle
+        clockText.addEventListener("click", () => { video.muted = !video.muted; });
+
+        // 2. DUMMY MIC: Just Color Toggle
+        muteBtn.onclick = () => muteBtn.classList.toggle('btn-red');
+
+        // 3. HAND RAISE: Automatic lowering after 5 seconds
+        raiseHandBtn.onclick = function() {
+            if (!this.classList.contains('hand-active')) {
+                this.classList.add('hand-active');
+                setTimeout(() => {
+                    this.classList.remove('hand-active');
+                }, 5000);
+            }
+        };
+
+        // 4. KEYBOARD SHORTCUTS (A, D, C, X, W)
+        window.addEventListener("keydown", (e) => {
+            if (e.target.contentEditable === "true") return;
+            const key = e.key.toLowerCase();
+            
+            // Seeking logic
+            if (key === 'a') video.currentTime = Math.max(0, video.currentTime - 60);
+            if (key === 'd') video.currentTime = Math.min(video.duration, video.currentTime + 60);
+            
+            // Toggle Seekbar
+            if (key === 'c') seekBarContainer.style.display = (seekBarContainer.style.display === "flex") ? "none" : "flex";
+            
+            // Resize Activation
+            if (key === 'x') { isXPressed = true; resizable.style.outline = "2px dashed #ffaa00"; }
+
+            // NEW: Secret Play/Pause Toggle with 'W'
+            if (key === 'w') {
+                if (video.paused) {
+                    video.play();
+                } else {
+                    video.pause();
+                }
+            }
+        });
+
+        window.addEventListener("keyup", (e) => { if (e.key.toLowerCase() === 'x') { isXPressed = false; isResizing = false; resizable.style.outline = "none"; } });
+
+        // 5. PRESENT NOW LOGIC
+        presentBtn.addEventListener("click", () => {
+            if (!isPresenting) {
+                openModal("Presenting?", "Share your screen?", "Start", "btn-blue", () => {
+                    isPresenting = true;
+                    presentBtn.innerHTML = "<span>Stop sharing</span>";
+                    presentBtn.classList.add('btn-red');
+                });
+            } else {
+                isPresenting = false;
+                presentBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg><span>Present now</span>';
+                presentBtn.classList.remove('btn-red');
+            }
+        });
+
+        // 6. LIVE TIMER & CLOCK LOGIC
+        liveTimer.addEventListener('focus', () => { isTimerEditable = true; });
+        liveTimer.addEventListener('blur', () => {
+            const timeParts = liveTimer.textContent.replace(' LIVE', '').split(':');
+            if (timeParts.length === 3) {
+                baseSeconds = (parseInt(timeParts[0]) || 0) * 3600 + (parseInt(timeParts[1]) || 0) * 60 + (parseInt(timeParts[2]) || 0);
+                sessionStartTime = Date.now();
+            }
+            isTimerEditable = false;
+        });
+
+        setInterval(() => {
+            clockText.innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            if (!isTimerEditable) {
+                const total = baseSeconds + Math.floor((Date.now() - sessionStartTime) / 1000);
+                const h = String(Math.floor(total / 3600)).padStart(2, '0');
+                const m = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
+                const s = String(total % 60).padStart(2, '0');
+                liveTimer.textContent = `${h}:${m}:${s} LIVE`;
+            }
+        }, 1000);
+
+        // 7. VIDEO SEEKBAR & METADATA
+        video.ontimeupdate = () => {
+            if (!videoSeeker.matches(':active')) videoSeeker.value = video.currentTime;
+            const m = Math.floor(video.currentTime / 60);
+            const s = String(Math.floor(video.currentTime % 60)).padStart(2, '0');
+            curTimeDisplay.innerText = `${m}:${s}`;
+        };
+
+        video.onloadedmetadata = () => { 
+            videoSeeker.max = video.duration; 
+            const m = Math.floor(video.duration / 60);
+            const s = String(Math.floor(video.duration % 60)).padStart(2, '0');
+            durTimeDisplay.innerText = `${m}:${s}`;
+        };
+
+        videoSeeker.oninput = () => video.currentTime = videoSeeker.value;
+
+        // 8. MODALS & UTILS
+        function openModal(title, text, btnText, btnClass, action) {
+            document.getElementById("modalTitle").innerText = title;
+            document.getElementById("modalText").innerText = text;
+            const btn = document.getElementById("confirmActionBtn");
+            btn.innerText = btnText; btn.className = "meet-button " + btnClass;
+            btn.onclick = () => { action(); closeModal(); };
+            document.getElementById("confirmModal").classList.add("active");
+        }
+        function closeModal() { document.getElementById("confirmModal").classList.remove("active"); }
+
+        document.getElementById("leaveBtn").onclick = () => {
+            openModal("Leave?", "Exit lecture?", "Leave", "btn-red", () => {
+                document.getElementById("mainContainer").style.display = "none";
+                document.getElementById("leaveScreen").style.display = "flex";
+            });
+        };
+
+        // Resize Logic
+        window.addEventListener("mousedown", () => { if (isXPressed) isResizing = true; });
+        window.addEventListener("mouseup", () => isResizing = false);
+        window.addEventListener("mousemove", (e) => {
+            if (isResizing && isXPressed) {
+                resizable.style.width = (Math.abs(e.clientX - window.innerWidth / 2) * 2) + "px";
+                resizable.style.height = (Math.abs(e.clientY - window.innerHeight / 2) * 2) + "px";
+            }
+        });
+
+        cameraBtn.onclick = () => cameraBtn.classList.toggle('btn-red');
+        volumeSlider.oninput = (e) => { video.volume = e.target.value; video.muted = false; };
+    </script>
+</body>
+</html>
